@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import CommentThread from '../components/CommentThread.jsx';
 
 const API = 'http://localhost:4000/api';
@@ -7,13 +8,14 @@ const API = 'http://localhost:4000/api';
 export default function PostPage() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
+  const token = useSelector((s) => s.auth.token);
 
   useEffect(() => {
     // Simplified: load from feed endpoint in a real app or create a /posts/:id endpoint
-    fetch(`${API}/posts/feed`, { headers: { Authorization: `Bearer ${localStorage.getItem('twitlite_token') ? `Bearer ${localStorage.getItem('twitlite_token')}` : ''}` } })
+    fetch(`${API}/posts/feed`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
       .then((r) => r.json())
       .then((list) => setPost(list.find((p) => p.id.toString() === id)));
-  }, [id]);
+  }, [id, token]);
 
   if (!post) return <div>Loading...</div>;
 

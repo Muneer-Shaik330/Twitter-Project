@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import ProfileEditor from '../components/ProfileEditor.jsx';
-import { restorePost, fetchFeed, deleteImage } from '../store/slices/postsSlice.js';
+import { restorePost, fetchFeed, updatePost, deletePost } from '../store/slices/postsSlice.js';
 
 const API = 'http://localhost:4000/api';
 
@@ -54,6 +54,15 @@ export default function Profile() {
       dispatch(fetchFeed());
     } catch (error) {
       console.error('Failed to restore post:', error);
+    }
+  }
+
+  async function handleDelete(postId) {
+    try {
+      await dispatch(deletePost(postId)).unwrap();
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    } catch (err) {
+      console.error('Failed to delete post:', err);
     }
   }
 
@@ -141,27 +150,26 @@ export default function Profile() {
           {posts.map((p) => (
             <div key={p.id} className="card p-3">
               <div className="font-semibold mb-2">{p.display_name || p.username}</div>
-              <div className="whitespace-pre-wrap">{p.content}</div>
+              <EditablePost post={p} onSave={async (content) => {
+                const trimmed = (content || '').trim();
+                if (!trimmed) return;
+                await dispatch(updatePost({ postId: p.id, content: trimmed })).unwrap();
+                // reflect immediately in local list
+                setPosts((prev) => prev.map(x => x.id === p.id ? { ...x, content: trimmed } : x));
+              }} canEdit={isMe} />
               {p.images && p.images.length ? (
                 <div className={p.images.length === 1 ? 'mt-2' : 'grid grid-cols-2 gap-2 mt-2'}>
-                  {p.images.map((url, index) => (
-                    <div key={url} className="relative group">
-                      <img
-                        className="rounded w-full object-cover max-h-72"
-                        src={url.startsWith('http') ? url : `http://localhost:4000${url}`}
-                        alt="Post"
-                      />
-                      {isMe && (
-                        <button 
-                          onClick={() => dispatch(deleteImage({ postId: p.id, imageId: index }))}
-                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Delete image"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
+                  {p.images.map((img) => (
+                    <div key={img.id || img.url} className="relative group bg-black rounded overflow-hidden">
+                      <a href={img.url?.startsWith('http') ? img.url : `http://localhost:4000${img.url}`} target="_blank" rel="noopener noreferrer">
+                        <img
+                          className="w-full max-h-[600px] object-contain"
+                          src={img.url?.startsWith('http') ? img.url : `http://localhost:4000${img.url}`}
+                          loading="lazy"
+                          alt="Post image"
+                        />
+                      </a>
+                      {/* No delete overlay per request */}
                     </div>
                   ))}
                 </div>
@@ -174,6 +182,11 @@ export default function Profile() {
                   Retweet {p.repost_count ? `(${p.repost_count})` : ''}
                 </button>
                 <span className="text-gray-600">Like ({p.like_count || 0})</span>
+                {isMe && !showTrash && (
+                  <button className="ml-auto text-red-600 hover:text-red-700 font-medium" onClick={() => handleDelete(p.id)}>
+                    Delete
+                  </button>
+                )}
                 {showTrash && isMe && (
                   <button className="ml-auto text-green-600 hover:text-green-700 font-medium" onClick={() => handleRestore(p.id)}>
                     Restore
@@ -184,6 +197,40 @@ export default function Profile() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function EditablePost({ post, onSave, canEdit }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(post.content || '');
+  if (!canEdit) return <div className="whitespace-pre-wrap">{post.content}</div>;
+  return (
+    <div>
+      {!editing ? (
+        <div className="whitespace-pre-wrap">{post.content}</div>
+      ) : (
+        <div className="space-y-2">
+          <textarea
+            className="input w-full resize-none font-body"
+            rows={3}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="flex gap-2 justify-end">
+            <button className="btn-outline px-3 py-1" onClick={() => { setEditing(false); setDraft(post.content || ''); }}>Cancel</button>
+            <button className="btn-primary px-3 py-1" onClick={async () => {
+              const trimmed = (draft || '').trim();
+              if (!trimmed) return;
+              await onSave(trimmed);
+              setEditing(false);
+            }}>Save</button>
+          </div>
+        </div>
+      )}
+      {canEdit && !editing && (
+        <div className="mt-2 flex justify-end"><button className="text-gray-700 hover:text-indigo-700" onClick={() => setEditing(true)}>Edit</button></div>
+      )}
     </div>
   );
 }

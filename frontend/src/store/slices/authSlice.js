@@ -56,7 +56,13 @@ const slice = createSlice({
      .addCase(register.fulfilled, (s) => { s.status = 'succeeded'; })
      .addCase(register.pending, (s) => { s.status = 'loading'; s.error = null; })
      .addCase(register.rejected, (s, a) => { s.status = 'failed'; s.error = a.error.message; });
-    b.addCase(fetchMe.fulfilled, (s, a) => { if (a.payload) s.user = a.payload; });
+    b.addCase(fetchMe.fulfilled, (s, a) => { if (a.payload) s.user = a.payload; })
+     .addCase(fetchMe.rejected, (s) => {
+        // If token is invalid/stale, clear it so app routes to login
+        s.token = null;
+        s.user = null;
+        localStorage.removeItem(tokenKey);
+     });
   }
 });
 

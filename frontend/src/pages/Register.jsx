@@ -3,6 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { register } from '../store/slices/authSlice.js';
 import { Link, useNavigate } from 'react-router-dom';
 
+
+
+
 export default function Register() {
   const dispatch = useDispatch();
   const nav = useNavigate();
@@ -12,10 +15,14 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [display_name, setDisplayName] = useState('');
 
+
+
+
   async function submit(e) {
     e.preventDefault();
     try { await dispatch(register({ username, email, password, display_name })).unwrap(); nav('/login'); } catch {}
   }
+
 
   return (
     <div className="h-screen w-screen fixed inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4 relative overflow-hidden">
@@ -62,6 +69,9 @@ export default function Register() {
           </h1>
           <p className="text-white/80 text-lg font-body">Create your account</p>
         </div>
+
+
+
 
         {/* Register Form Card */}
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl">

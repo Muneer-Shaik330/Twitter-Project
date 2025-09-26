@@ -54,6 +54,17 @@ export const deletePost = createAsyncThunk('posts/deletePost', async (postId, { 
   return { postId };
 });
 
+export const updatePost = createAsyncThunk('posts/updatePost', async ({ postId, content }, { getState }) => {
+  const token = getState().auth.token;
+  const res = await fetch(`${API}/posts/${postId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ content })
+  });
+  if (!res.ok) throw new Error('Failed to update post');
+  return { postId, content };
+});
+
 export const restorePost = createAsyncThunk('posts/restorePost', async (postId, { getState }) => {
   const token = getState().auth.token;
   const res = await fetch(`${API}/posts/${postId}/restore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
@@ -107,16 +118,19 @@ const slice = createSlice({
         s.items = s.items.filter((x) => x.id !== a.payload.postId);
      })
      .addCase(deleteImage.fulfilled, (s, a) => {
-        // Remove image from post
         const post = s.items.find((x) => x.id === a.payload.postId);
-        if (post && post.images) {
-          post.images = post.images.filter((img, index) => index !== a.payload.imageId);
+        if (post && Array.isArray(post.images)) {
+          post.images = post.images.filter((img) => (img.id ?? img.url) !== a.payload.imageId);
         }
      })
      .addCase(restoreImage.fulfilled, (s, a) => {
         // Image restore would need to refetch the post
         // For now, just log success
         console.log('Image restored successfully');
+     })
+     .addCase(updatePost.fulfilled, (s, a) => {
+        const post = s.items.find((x) => x.id === a.payload.postId);
+        if (post) post.content = a.payload.content;
      });
   }
 });

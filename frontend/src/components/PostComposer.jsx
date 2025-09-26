@@ -29,13 +29,12 @@ export default function PostComposer() {
 
   async function submit(e) {
     e.preventDefault();
-    
-    // Check if both content and images are empty
-    if (!content.trim() && images.length === 0) {
+    // Require text content even if images are attached
+    if (!content.trim()) {
       setShowError(true);
       return;
     }
-    
+
     setShowError(false);
     await dispatch(createPost({ content, images })).unwrap();
     setContent('');
@@ -52,7 +51,7 @@ export default function PostComposer() {
         value={content} 
         onChange={(e) => {
           setContent(e.target.value);
-          if (showError && (e.target.value.trim() || images.length > 0)) {
+          if (showError && e.target.value.trim()) {
             setShowError(false);
           }
         }} 
@@ -71,9 +70,8 @@ export default function PostComposer() {
             multiple 
             onChange={(e) => {
               setImages(Array.from(e.target.files || []));
-              if (showError && (content.trim() || e.target.files.length > 0)) {
-                setShowError(false);
-              }
+              // Keep error shown if there's still no text
+              if (showError && content.trim()) setShowError(false);
             }} 
           />
           <button type="button" className="btn-outline px-2 py-1" onClick={() => setShowEmoji((v) => !v)} aria-label="Add emoji">😊</button>

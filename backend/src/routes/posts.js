@@ -44,10 +44,10 @@ router.get('/feed', requireAuth, async (req, res) => {
     [req.user.id, req.user.id, req.user.id, req.user.id]
   );
   const ids = rows.map(r => r.id);
-  const images = ids.length ? await query(`SELECT post_id, url FROM post_images WHERE is_deleted = 0 AND post_id IN (${ids.map(() => '?').join(',')})`, ids) : [];
+  const images = ids.length ? await query(`SELECT id, post_id, url FROM post_images WHERE is_deleted = 0 AND post_id IN (${ids.map(() => '?').join(',')})`, ids) : [];
   const postIdToImages = images.reduce((acc, img) => {
     acc[img.post_id] = acc[img.post_id] || [];
-    acc[img.post_id].push(img.url);
+    acc[img.post_id].push({ id: img.id, url: img.url });
     return acc;
   }, {});
   res.json(rows.map(r => ({
@@ -77,10 +77,10 @@ router.get('/user/:userId', requireAuth, async (req, res) => {
       [req.user.id, req.user.id, targetId]
     );
     const ids = rows.map(r => r.id);
-    const images = ids.length ? await query(`SELECT post_id, url FROM post_images WHERE is_deleted = 0 AND post_id IN (${ids.map(() => '?').join(',')})`, ids) : [];
+    const images = ids.length ? await query(`SELECT id, post_id, url FROM post_images WHERE is_deleted = 0 AND post_id IN (${ids.map(() => '?').join(',')})`, ids) : [];
     const postIdToImages = images.reduce((acc, img) => {
       acc[img.post_id] = acc[img.post_id] || [];
-      acc[img.post_id].push(img.url);
+      acc[img.post_id].push({ id: img.id, url: img.url });
       return acc;
     }, {});
     return res.json(rows.map(r => ({ ...r, images: postIdToImages[r.id] || [] })));
@@ -127,10 +127,10 @@ router.get('/user/:userId', requireAuth, async (req, res) => {
   });
 
   const ids = combined.map(r => r.id);
-  const images = ids.length ? await query(`SELECT post_id, url FROM post_images WHERE is_deleted = 0 AND post_id IN (${ids.map(() => '?').join(',')})`, ids) : [];
+  const images = ids.length ? await query(`SELECT id, post_id, url FROM post_images WHERE is_deleted = 0 AND post_id IN (${ids.map(() => '?').join(',')})`, ids) : [];
   const postIdToImages = images.reduce((acc, img) => {
     acc[img.post_id] = acc[img.post_id] || [];
-    acc[img.post_id].push(img.url);
+    acc[img.post_id].push({ id: img.id, url: img.url });
     return acc;
   }, {});
 
@@ -140,6 +140,9 @@ router.get('/user/:userId', requireAuth, async (req, res) => {
 router.post('/', requireAuth, upload.array('images', 4), async (req, res) => {
   try {
     const { content } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Tweet text is required' });
+    }
     const result = await query('INSERT INTO posts (user_id, content, is_deleted, created_at) VALUES (?, ?, 0, NOW())', [req.user.id, content || '']);
     const postId = result.insertId;
     for (const f of req.files || []) {
@@ -149,6 +152,24 @@ router.post('/', requireAuth, upload.array('images', 4), async (req, res) => {
   } catch (err) {
     console.error('POST /api/posts error:', err);
     res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
+// Update post content (owner only)
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { content } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Tweet text is required' });
+    }
+    const owns = await query('SELECT 1 FROM posts WHERE id = ? AND user_id = ? AND is_deleted = 0', [postId, req.user.id]);
+    if (!owns.length) return res.status(403).json({ error: 'Forbidden' });
+    await query('UPDATE posts SET content = ? WHERE id = ?', [content, postId]);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('PUT /api/posts/:id error:', err);
+    res.status(500).json({ error: 'Failed to update post' });
   }
 });
 

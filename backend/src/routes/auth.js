@@ -27,9 +27,14 @@ router.post('/login', async (req, res) => {
   const user = users[0];
   const ok = await bcrypt.compare(password, user.password_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+
+
+
   const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: '7d' });
   return res.json({ token, user: { id: user.id, username: user.username, display_name: user.display_name, avatar_url: user.avatar_url, cover_url: user.cover_url, bio: user.bio } });
 });
+
 
 // Get current user by token
 router.get('/me', requireAuth, async (req, res) => {
